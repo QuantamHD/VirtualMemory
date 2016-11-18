@@ -28,27 +28,32 @@ typedef struct {
   int8_t pageFrame[256];
 }MemoryPage;
 
+typedef struct {
+  uint16_t* addresses;
+  uint32_t size;
+}MemoryAddresses;
+
 struct tlbentry {
     uint8_t logical;
     uint8_t physical;
 };
 
-// TLB is kept track of as a circular array, with the oldest element being overwritten once 
+// TLB is kept track of as a circular array, with the oldest element being overwritten once
 //the TLB is full.
 struct tlbentry tlb[TLB_SIZE];
 
-//number of inserts into TLB that have been completed. Use as tlbindex % TLB_SIZE for 
+//number of inserts into TLB that have been completed. Use as tlbindex % TLB_SIZE for
 //the index of the next TLB line to use.
-int tlbindex = 0;
+int32_t tlbindex = 0;
 
-// pagetable[logical_page] is the physical page number for logical page. Value is -1 
+// pagetable[logical_page] is the physical page number for logical page. Value is -1
 // if that logical page isn't yet in the table.
 int pagetable[PAGES] = { [ 0 ... PAGES-1 ] = -1};
 
 //simulation of RAM
 int8_t main_memory[MEMORY_SIZE];
 
-// Pointer to memory mapped secondary storage 
+// Pointer to memory mapped secondary storage
 int8_t *backing;
 
 /**
@@ -82,18 +87,77 @@ void get_value_at(int logical_address)
   // First bit shift and mask to get offset and logical page.
   int offset = logical_address & OFFSET_MASK;
   int logical_page = (logical_address >> OFFSET_BITS) & PAGE_MASK;
-  int physical_page = get_physical_page(logical_address);
+  int physical_page = get_physical_page(logical_page);
 
   // Extract value and new physical address
   int physical_address = (physical_page << OFFSET_BITS) | offset;
-  uint8_t value = main_memory[physical_page * PAGE_SIZE + offset];            
+  int8_t value = main_memory[physical_page * PAGE_SIZE + offset];            
   printf("Virtual address: %d Physical address: %d Value: %d\n", 
             logical_address, physical_address, value);
 }
 
+size_t count_lines(char* file_name){
+  FILE* file_pointer;
+  char* line = NULL;
+  size_t len = 0;
+  size_t line_count = 0;
+  ssize_t read;
+
+  file_pointer = fopen(file_name, "r");
+  if(file_pointer == NULL){
+    exit(-1);
+  }
+
+  while((read = getline(&line, &len, file_pointer)) != -1){
+    line_count++;
+  }
+
+  fclose(file_pointer);
+  free(line);
+
+  return line_count;
+}
+
+MemoryAddresses* get_memory_addresses(){
+  FILE* file_pointer;
+  char* line = NULL;
+  size_t len = 0;
+  size_t count = count_lines("addresses.txt");
+  ssize_t read;
+
+  MemoryAddresses* output = calloc(1, sizeof(MemoryAddresses));
+  output->size = count;
+  output->addresses = calloc(count, sizeof(uint16_t));
+
+
+  file_pointer = fopen("addresses.txt", "r");
+  if(file_pointer == NULL){
+    exit(-1);
+  }
+
+  count = 0;
+  while((read = getline(&line, &len, file_pointer)) != -1){
+    output->addresses[count] = (uint16_t) atoi(line);
+    count++;
+  }
+
+  fclose(file_pointer);
+  free(line);
+
+  return output;
+}
+
 int main(int argc, const char *argv[])
 {
+  const char *backing_filename = argv[1]; 
+  int backing_fd = open(backing_filename, O_RDONLY);
+  //after the next instruction the secondary storage file can be viewed as an array
+  backing = mmap(0, MEMORY_SIZE, PROT_READ, MAP_PRIVATE, backing_fd, 0); 
 
+  MemoryAddresses* addresses = get_memory_addresses();
+  for(size_t i = 0; i < addresses->size; i++){
+    get_value_at(addresses->addresses[i]);
+  }
 
   return 0;
 }
