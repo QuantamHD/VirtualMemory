@@ -67,7 +67,7 @@ int8_t *backing;
 
 // Keep track of some interesting stats.
 int page_faults = 0;
-int tlb_hits = 0;
+int tlb_hits = -1;
 
 
 /*
@@ -105,7 +105,10 @@ uint8_t get_physical_page(uint8_t logical_page)
   // First check in TLB.
   int16_t tlb_result = get_physical_page_tlb(logical_page);
   if(tlb_result != -1)
+  {
+    tlb_hits++;
     return tlb_result;
+  }
 
   // Next check page table.
   if (pagetable[logical_page] != -1)
