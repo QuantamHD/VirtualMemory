@@ -28,6 +28,28 @@ typedef struct {
   uint8_t pageFrame[256];
 }MemoryPage;
 
+struct tlbentry {
+    unsigned char logical;
+    unsigned char physical;
+};
+
+// TLB is kept track of as a circular array, with the oldest element being overwritten once 
+//the TLB is full.
+struct tlbentry tlb[TLB_SIZE];
+
+//number of inserts into TLB that have been completed. Use as tlbindex % TLB_SIZE for 
+//the index of the next TLB line to use.
+int tlbindex = 0;
+
+// pagetable[logical_page] is the physical page number for logical page. Value is -1 
+// if that logical page isn't yet in the table.
+int pagetable[PAGES];
+
+//simulation of RAM
+signed char main_memory[MEMORY_SIZE];
+
+// Pointer to memory mapped secondary storage 
+signed char *backing;
 
 int main(int argc, const char *argv[])
 {
