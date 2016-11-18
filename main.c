@@ -43,7 +43,7 @@ int tlbindex = 0;
 
 // pagetable[logical_page] is the physical page number for logical page. Value is -1 
 // if that logical page isn't yet in the table.
-int pagetable[PAGES];
+int pagetable[PAGES] = { [ 0 ... PAGES-1 ] = -1};
 
 //simulation of RAM
 int8_t main_memory[MEMORY_SIZE];
@@ -52,8 +52,44 @@ int8_t main_memory[MEMORY_SIZE];
 int8_t *backing;
 
 /**
-
+Takes in logical page and returns physical page.
+Return of -1 indicates that page is in secondary storage, not in RAM.
 */
+int get_physical_page(int logical_page)
+{
+  // First check in TLB.
+  
+  // Next check page table.
+  if (pagetable[logical_page] != -1)
+    return pagetable[logical_page];
+
+  // -1 means page is not in RAM, so copy over from secondary storage.
+  memcpy(main_memory + logical_page * PAGE_SIZE, 
+           backing + logical_page * PAGE_SIZE, PAGE_SIZE);
+ 
+  // update page table
+  pagetable[logical_page] = logical_page;
+
+  return logical_page;
+  
+}
+
+/**
+Takes in logical address and retreives and prints value.
+*/
+void get_value_at(int logical_address)
+{
+  // First bit shift and mask to get offset and logical page.
+  int offset = logical_address & OFFSET_MASK;
+  int logical_page = (logical_address >> OFFSET_BITS) & PAGE_MASK;
+  int physical_page = get_physical_page(logical_address);
+
+  // Extract value and new physical address
+  int physical_address = (physical_page << OFFSET_BITS) | offset;
+  uint8_t value = main_memory[physical_page * PAGE_SIZE + offset];            
+  printf("Virtual address: %d Physical address: %d Value: %d\n", 
+            logical_address, physical_address, value);
+}
 
 int main(int argc, const char *argv[])
 {
