@@ -25,12 +25,12 @@ Basics of program needed to complete assignment 7
 #define BUFFER_SIZE 10
 
 typedef struct {
-  uint8_t pageFrame[256];
+  int8_t pageFrame[256];
 }MemoryPage;
 
 struct tlbentry {
-    unsigned char logical;
-    unsigned char physical;
+    uint8_t logical;
+    uint8_t physical;
 };
 
 // TLB is kept track of as a circular array, with the oldest element being overwritten once 
@@ -46,10 +46,14 @@ int tlbindex = 0;
 int pagetable[PAGES];
 
 //simulation of RAM
-signed char main_memory[MEMORY_SIZE];
+int8_t main_memory[MEMORY_SIZE];
 
 // Pointer to memory mapped secondary storage 
-signed char *backing;
+int8_t *backing;
+
+/**
+
+*/
 
 int main(int argc, const char *argv[])
 {
