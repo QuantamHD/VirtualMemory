@@ -1,5 +1,14 @@
 /*
-Basics of program needed to complete assignment 7
+Project 7
+CPSC 346, Sec 02
+Kyle McCrohan (kmccrohan@zagmail.gonzaga.edu)
+Ethan Mahintorabi (emahintorabi@zagmail.gonzaga.edu)
+
+Description:
+- simulate a VM scheme using an array to represent RAM and a file to represent secondary storage
+- read in virtual addresses from a text file
+- Look in TLB, then page table for page frame of virtual page, map to RAM and retreive value
+- If page frame not in RAM, go and retreive it from secondary storage
 */
 
 #include <stdio.h>
@@ -56,6 +65,10 @@ int8_t main_memory[MEMORY_SIZE];
 // Pointer to memory mapped secondary storage
 int8_t *backing;
 
+// Keep track of some interesting stats.
+int page_faults = 0;
+int tlb_hits = 0;
+
 
 /*
 This function will take in a logical page, and return
@@ -82,6 +95,7 @@ void add_item_to_tlb(uint8_t logical_page, uint8_t physical_page)
   tlbindex = (tlbindex + 1) % TLB_SIZE;
 }
 
+
 /**
 Takes in logical page and returns physical page.
 Return of -1 indicates that page is in secondary storage, not in RAM.
@@ -103,11 +117,11 @@ uint8_t get_physical_page(uint8_t logical_page)
 
   // update page table
   pagetable[logical_page] = logical_page;
+  page_faults++;
 
   add_item_to_tlb(logical_page, pagetable[logical_page]);
 
-  return logical_page;
-
+  return pagetable[logical_page];
 }
 
 /**
@@ -186,17 +200,31 @@ MemoryAddresses* get_memory_addresses(){
   return output;
 }
 
+/**
+Prints out stats about this VM scheme.
+*/
+void print_stats(int translations) {
+  printf("Number of Translations: %d\n", translations);
+  printf("Page Faults: %d\n", page_faults);
+  printf("Page Fault Rate: %.3f\n", page_faults/((double)translations));
+  printf("TLB Hits: %d\n", tlb_hits);
+  printf("TLB Hits Rate: %.3f\n", tlb_hits/((double)translations));
+}
+
 int main(int argc, const char *argv[])
 {
+
+  // Load in backing file.
   const char *backing_filename = argv[1];
   int backing_fd = open(backing_filename, O_RDONLY);
-  //after the next instruction the secondary storage file can be viewed as an array
   backing = mmap(0, MEMORY_SIZE, PROT_READ, MAP_PRIVATE, backing_fd, 0);
 
   MemoryAddresses* addresses = get_memory_addresses();
   for(size_t i = 0; i < addresses->size; i++){
     get_value_at(addresses->addresses[i]);
   }
+
+  print_stats(addresses->size);
 
   return 0;
 }
