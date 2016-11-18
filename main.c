@@ -56,27 +56,58 @@ int8_t main_memory[MEMORY_SIZE];
 // Pointer to memory mapped secondary storage
 int8_t *backing;
 
+
+/*
+This function will take in a logical page, and return
+the physical page if it exits in the tlb. If it does
+not the function will return -1;
+*/
+int16_t get_physical_page_tlb(uint8_t logical_page)
+{
+  for(size_t i = 0; i < TLB_SIZE; i++)
+    if(tlb[i].logical == logical_page)
+      return tlb[i].physical;
+
+  return -1;
+}
+
+/*
+This function will takee the logical page, and the physical page
+and place them in the tlb.
+*/
+void add_item_to_tlb(uint8_t logical_page, uint8_t physical_page)
+{
+  tlb[tlbindex].logical = logical_page;
+  tlb[tlbindex].physical = physical_page;
+  tlbindex = (tlbindex + 1) % TLB_SIZE;
+}
+
 /**
 Takes in logical page and returns physical page.
 Return of -1 indicates that page is in secondary storage, not in RAM.
 */
-int get_physical_page(int logical_page)
+uint8_t get_physical_page(uint8_t logical_page)
 {
   // First check in TLB.
-  
+  int16_t tlb_result = get_physical_page_tlb(logical_page);
+  if(tlb_result != -1)
+    return tlb_result;
+
   // Next check page table.
   if (pagetable[logical_page] != -1)
     return pagetable[logical_page];
 
   // -1 means page is not in RAM, so copy over from secondary storage.
-  memcpy(main_memory + logical_page * PAGE_SIZE, 
+  memcpy(main_memory + logical_page * PAGE_SIZE,
            backing + logical_page * PAGE_SIZE, PAGE_SIZE);
- 
+
   // update page table
   pagetable[logical_page] = logical_page;
 
+  add_item_to_tlb(logical_page, pagetable[logical_page]);
+
   return logical_page;
-  
+
 }
 
 /**
@@ -91,11 +122,15 @@ void get_value_at(int logical_address)
 
   // Extract value and new physical address
   int physical_address = (physical_page << OFFSET_BITS) | offset;
-  int8_t value = main_memory[physical_page * PAGE_SIZE + offset];            
-  printf("Virtual address: %d Physical address: %d Value: %d\n", 
+  int8_t value = main_memory[physical_page * PAGE_SIZE + offset];
+  printf("Virtual address: %d Physical address: %d Value: %d\n",
             logical_address, physical_address, value);
 }
 
+/*
+This function will take the file name as a char*, and return the
+number of lines inside the file.
+*/
 size_t count_lines(char* file_name){
   FILE* file_pointer;
   char* line = NULL;
@@ -118,6 +153,10 @@ size_t count_lines(char* file_name){
   return line_count;
 }
 
+/*
+This function will create a struct of the memory addesses passed
+into the program from "memoryaddress.txt".
+*/
 MemoryAddresses* get_memory_addresses(){
   FILE* file_pointer;
   char* line = NULL;
@@ -149,10 +188,10 @@ MemoryAddresses* get_memory_addresses(){
 
 int main(int argc, const char *argv[])
 {
-  const char *backing_filename = argv[1]; 
+  const char *backing_filename = argv[1];
   int backing_fd = open(backing_filename, O_RDONLY);
   //after the next instruction the secondary storage file can be viewed as an array
-  backing = mmap(0, MEMORY_SIZE, PROT_READ, MAP_PRIVATE, backing_fd, 0); 
+  backing = mmap(0, MEMORY_SIZE, PROT_READ, MAP_PRIVATE, backing_fd, 0);
 
   MemoryAddresses* addresses = get_memory_addresses();
   for(size_t i = 0; i < addresses->size; i++){
