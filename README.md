@@ -1,3 +1,3 @@
 # VirtualMemory
 
-This is an inline ![alt text](https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 1")
+This is an inline ![alt text](http://imgh.us/test_267.svg "Logo Title Text 1")
